@@ -1,11 +1,11 @@
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mockito;
 import ru.netology.entity.Country;
 import ru.netology.entity.Location;
 import ru.netology.geo.GeoService;
@@ -29,6 +29,13 @@ public class MessageSenderTests {
                         );
     }
 
+    public Stream<Arguments> correctArgumentsForSenderTestMockito () {
+        return Stream.of(
+                Arguments.of(Country.RUSSIA, "Добро пожаловать", "172.0.32.11", new Location("Moscow", Country.RUSSIA, null, 0)),
+                Arguments.of(Country.USA, "Welcome", "96.44.183.149", new Location("New York", Country.USA, null,  0))
+                        );
+    }
+
     public Stream<Arguments> argumentsForGeoServiceTest () {
         return Stream.of(
                 Arguments.of(null, "127.0.0.1"),
@@ -44,6 +51,19 @@ public class MessageSenderTests {
     public void positiveSenderTest (String ip, String msg) {
         GeoService geoService = new GeoServiceMock();
         LocalizationService localizationService = new LocalizationServiceMock();
+        MessageSender messageSender = new MessageSenderImpl(geoService, localizationService);
+        Map<String, String> headers = new HashMap<>();
+        headers.put(MessageSenderImpl.IP_ADDRESS_HEADER, ip);
+        Assertions.assertEquals(msg, messageSender.send(headers));
+    }
+
+    @ParameterizedTest
+    @MethodSource("correctArgumentsForSenderTestMockito")
+    public void positiveSenderTestMockito (Country country, String msg, String ip, Location location) {
+        LocalizationService localizationService = Mockito.mock(LocalizationService.class);
+        Mockito.when(localizationService.locale(country)).thenReturn(msg);
+        GeoService geoService = Mockito.mock(GeoService.class);
+        Mockito.when(geoService.byIp(ip)).thenReturn(location);
         MessageSender messageSender = new MessageSenderImpl(geoService, localizationService);
         Map<String, String> headers = new HashMap<>();
         headers.put(MessageSenderImpl.IP_ADDRESS_HEADER, ip);
